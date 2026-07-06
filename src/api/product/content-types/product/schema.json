@@ -63,7 +63,9 @@
       "type": "json"
     },
     "variants": {
-      "type": "json"
+      "type": "component",
+      "repeatable": true,
+      "component": "product.variant"
     },
     "category": {
       "type": "relation",
