@@ -1,61 +1,50 @@
-# 🚀 Getting started with Strapi
+# 3legant CMS
 
-Strapi comes with a full featured [Command Line Interface](https://docs.strapi.io/dev-docs/cli) (CLI) which lets you scaffold and manage your project in seconds.
+Headless [Strapi v5](https://strapi.io) backend for the **3legant furniture
+storefront**. Defines the content model and exposes it over Strapi's REST API.
 
-### `develop`
+> Frontend: [`ecommerce`](https://github.com/ngohuynhducdev/ecommerce) —
+> a Next.js 16 storefront that reads from this CMS **or** from built-in mock
+> data, toggled by an env flag. The live demo runs on mock data, so this CMS
+> is optional.
 
-Start your Strapi application with autoReload enabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-develop)
+## Content types
 
-```
-npm run develop
-# or
-yarn develop
-```
+| Type | Key fields |
+|---|---|
+| **Product** | name, slug, price, comparePrice, images, category (relation), tags, variants, stock, isFeatured, isBestseller, rating, reviewCount |
+| **Category** | name, slug, description, image, products (relation) |
+| **Blog Post** | title, slug, excerpt, author, cover, tags, content (rich text) |
+| **Coupon** | code, discountType (percent/fixed), value, minOrder, expiresAt |
 
-### `start`
+Field names and shapes match what the frontend's Strapi mappers
+(`src/lib/api/*`) expect, so switching the frontend from mock to CMS needs
+zero UI changes.
 
-Start your Strapi application with autoReload disabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-start)
+## Run locally
 
-```
-npm run start
-# or
-yarn start
-```
-
-### `build`
-
-Build your admin panel. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-build)
-
-```
-npm run build
-# or
-yarn build
+```bash
+yarn install
+yarn develop        # admin at http://localhost:1337/admin
 ```
 
-## ⚙️ Deployment
+Point the frontend at it:
 
-Strapi gives you many possible deployment options for your project including [Strapi Cloud](https://cloud.strapi.io). Browse the [deployment section of the documentation](https://docs.strapi.io/dev-docs/deployment) to find the best solution for your use case.
-
+```bash
+# frontend .env.local
+NEXT_PUBLIC_USE_STRAPI=true
+NEXT_PUBLIC_STRAPI_URL=http://localhost:1337
+STRAPI_API_TOKEN=<full-access token from Settings → API Tokens>
 ```
-yarn strapi deploy
-```
 
-## 📚 Learn more
+## Notes
 
-- [Resource center](https://strapi.io/resource-center) - Strapi resource center.
-- [Strapi documentation](https://docs.strapi.io) - Official Strapi documentation.
-- [Strapi tutorials](https://strapi.io/tutorials) - List of tutorials made by the core team and the community.
-- [Strapi blog](https://strapi.io/blog) - Official Strapi blog containing articles made by the Strapi team and the community.
-- [Changelog](https://strapi.io/changelog) - Find out about the Strapi product updates, new features and general improvements.
+- **Publish entries** — content types use draft & publish; the REST API
+  returns only published entries, so publish products/posts after creating them.
+- **API access** — the frontend authenticates with a full-access API token
+  (Settings → API Tokens). Public read permissions also work for a token-less
+  setup.
 
-Feel free to check out the [Strapi GitHub repository](https://github.com/strapi/strapi). Your feedback and contributions are welcome!
+## Tech
 
-## ✨ Community
-
-- [Discord](https://discord.strapi.io) - Come chat with the Strapi community including the core team.
-- [Forum](https://forum.strapi.io/) - Place to discuss, ask questions and find answers, show your Strapi project and get feedback or just talk with other Community members.
-- [Awesome Strapi](https://github.com/strapi/awesome-strapi) - A curated list of awesome things related to Strapi.
-
----
-
-<sub>🤫 Psst! [Strapi is hiring](https://strapi.io/careers).</sub>
+Strapi v5 · TypeScript · SQLite (dev) / PostgreSQL (prod)
