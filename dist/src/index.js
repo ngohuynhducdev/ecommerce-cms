@@ -23,60 +23,153 @@ async function grantPublicRead(strapi) {
         }
     }
 }
-// Seed a little sample content on first run so the storefront has data to show.
+const publish = { status: "published" };
+// A rich-text paragraph/heading block (Strapi "blocks" format).
+const h2 = (text) => ({ type: "heading", level: 2, children: [{ type: "text", text }] });
+const p = (text) => ({ type: "paragraph", children: [{ type: "text", text }] });
+// Seed sample content on first run so the storefront has data to show.
+// Images are added later via the admin (uploads persist on Cloudinary in prod).
 async function seed(strapi) {
     const count = await strapi.documents("api::product.product").count({});
     if (count > 0)
         return;
-    const publish = { status: "published" };
-    const livingRoom = await strapi.documents("api::category.category").create({
-        data: { name: "Living Room", slug: "living-room", description: "Sofas, chairs and coffee tables" },
-        ...publish,
-    });
-    const bedroom = await strapi.documents("api::category.category").create({
-        data: { name: "Bedroom", slug: "bedroom", description: "Beds, nightstands and dressers" },
-        ...publish,
-    });
-    await strapi.documents("api::product.product").create({
-        data: {
-            name: "Aria Sofa",
-            slug: "aria-sofa",
-            description: "A timeless three-seater sofa in premium fabric.",
-            price: 1299,
-            comparePrice: 1599,
-            category: livingRoom.documentId,
-            tags: ["sofa", "fabric"],
+    const cats = {};
+    for (const [slug, name, description] of [
+        ["living-room", "Living Room", "Sofas, chairs and coffee tables"],
+        ["bedroom", "Bedroom", "Beds, nightstands and dressers"],
+        ["dining", "Dining", "Dining tables and chairs"],
+        ["office", "Office", "Desks, stools and storage"],
+    ]) {
+        cats[slug] = await strapi.documents("api::category.category").create({
+            data: { name, slug, description },
+            ...publish,
+        });
+    }
+    const products = [
+        {
+            name: "Aria Sofa", slug: "aria-sofa", category: "living-room",
+            description: "A timeless three-seater sofa upholstered in premium fabric.",
+            price: 1299, comparePrice: 1599, tags: ["sofa", "fabric"],
             variants: [
                 { name: "Color", value: "Beige", stock: 8 },
                 { name: "Color", value: "Charcoal", stock: 5 },
+                { name: "Color", value: "Sage Green", stock: 3 },
             ],
-            stock: 13,
-            isFeatured: true,
-            isBestseller: true,
-            rating: 4.8,
-            reviewCount: 124,
+            stock: 16, isFeatured: true, isBestseller: true, rating: 4.8, reviewCount: 124,
         },
-        ...publish,
-    });
-    await strapi.documents("api::product.product").create({
-        data: {
-            name: "Haven Bed Frame",
-            slug: "haven-bed-frame",
-            description: "Solid oak bed frame with a low headboard.",
-            price: 899,
-            category: bedroom.documentId,
-            tags: ["bed", "oak"],
-            variants: [{ name: "Size", value: "Queen", stock: 6 }],
-            stock: 6,
-            isFeatured: true,
-            rating: 4.6,
-            reviewCount: 58,
+        {
+            name: "Nordic Coffee Table", slug: "nordic-coffee-table", category: "living-room",
+            description: "Solid walnut coffee table with a minimalist Scandinavian silhouette.",
+            price: 349, tags: ["table", "walnut"],
+            variants: [{ name: "Color", value: "Natural Walnut", stock: 10 }],
+            stock: 10, isFeatured: true, rating: 4.6, reviewCount: 87,
         },
-        ...publish,
-    });
-    await strapi.documents("api::coupon.coupon").create({
-        data: { code: "SAVE10", discountType: "percent", value: 10, minOrder: 0 },
-    });
+        {
+            name: "Lounge Armchair", slug: "lounge-armchair", category: "living-room",
+            description: "A sculptural accent armchair with tapered legs.",
+            price: 499, comparePrice: 649, tags: ["chair", "accent"],
+            variants: [
+                { name: "Color", value: "Mustard", stock: 6 },
+                { name: "Color", value: "Slate", stock: 4 },
+            ],
+            stock: 10, isBestseller: true, rating: 4.7, reviewCount: 63,
+        },
+        {
+            name: "Haven Bed Frame", slug: "haven-bed-frame", category: "bedroom",
+            description: "Solid oak bed frame with a low, upholstered headboard.",
+            price: 899, tags: ["bed", "oak"],
+            variants: [
+                { name: "Size", value: "Queen", stock: 6 },
+                { name: "Size", value: "King", stock: 4 },
+            ],
+            stock: 10, isFeatured: true, rating: 4.6, reviewCount: 58,
+        },
+        {
+            name: "Drift Nightstand", slug: "drift-nightstand", category: "bedroom",
+            description: "Compact two-drawer nightstand with soft-close runners.",
+            price: 249, tags: ["storage", "oak"],
+            variants: [{ name: "Color", value: "Oak", stock: 12 }],
+            stock: 12, rating: 4.5, reviewCount: 41,
+        },
+        {
+            name: "Ensemble Dining Table", slug: "ensemble-dining-table", category: "dining",
+            description: "Extendable dining table that seats six to eight.",
+            price: 799, comparePrice: 999, tags: ["table", "dining"],
+            variants: [{ name: "Finish", value: "Oak", stock: 5 }],
+            stock: 5, isFeatured: true, rating: 4.8, reviewCount: 72,
+        },
+        {
+            name: "Contour Dining Chair", slug: "contour-dining-chair", category: "dining",
+            description: "Moulded dining chair with a solid ash base.",
+            price: 149, tags: ["chair", "dining"],
+            variants: [
+                { name: "Color", value: "White", stock: 20 },
+                { name: "Color", value: "Black", stock: 18 },
+            ],
+            stock: 38, isBestseller: true, rating: 4.4, reviewCount: 96,
+        },
+        {
+            name: "Mason Bar Stool", slug: "mason-bar-stool", category: "office",
+            description: "Height-adjustable bar stool with a footrest.",
+            price: 89, tags: ["stool", "office"],
+            variants: [{ name: "Color", value: "Black", stock: 25 }],
+            stock: 25, rating: 4.3, reviewCount: 34,
+        },
+    ];
+    for (const prod of products) {
+        const { category, ...rest } = prod;
+        await strapi.documents("api::product.product").create({
+            data: { ...rest, category: cats[category].documentId },
+            ...publish,
+        });
+    }
+    const posts = [
+        {
+            title: "How to Choose the Perfect Sofa for Your Living Room",
+            slug: "how-to-choose-the-perfect-sofa",
+            excerpt: "From size and shape to fabric and color — everything you need to know before buying.",
+            author: "Emma Carter", tags: ["Furniture Guide"],
+            content: [
+                h2("Understanding Your Space"),
+                p("Measure your room carefully and leave at least 18 inches of walkway around the sofa so the space doesn't feel cramped."),
+                h2("Fabric and Material"),
+                p("Leather ages beautifully but feels cold in winter; performance fabrics are ideal for families with a Martindale rub count above 20,000."),
+            ],
+        },
+        {
+            title: "Minimalist Interior Design Principles",
+            slug: "minimalist-interior-design-principles",
+            excerpt: "Less is more — the core principles for a calm, clutter-free home.",
+            author: "James Lee", tags: ["Interior Design"],
+            content: [
+                h2("The Core Principle: Less Is More"),
+                p("Every object in a minimalist space earns its place. Be intentional about what you bring into your home and why."),
+                h2("Color Palette"),
+                p("Rely on two or three neutrals with a single accent, and introduce interest through texture rather than color."),
+            ],
+        },
+        {
+            title: "The Art of Mixing Furniture Styles",
+            slug: "art-of-mixing-furniture-styles",
+            excerpt: "Blend eras, materials and shapes into a space that feels uniquely yours.",
+            author: "Sophia Martin", tags: ["Style Tips"],
+            content: [
+                h2("Start With a Foundation"),
+                p("Begin with one anchor piece that defines the room's direction, then layer other styles around it."),
+                h2("Balance Visual Weight"),
+                p("Pair substantial, heavy-looking pieces with lighter ones so no single corner of the room feels overloaded."),
+            ],
+        },
+    ];
+    for (const post of posts) {
+        // content uses Strapi's "blocks" shape; cast to satisfy the generated type
+        await strapi.documents("api::blog-post.blog-post").create({ data: post, ...publish });
+    }
+    for (const [code, value] of [["SAVE10", 10], ["FURNITURE20", 20]]) {
+        await strapi.documents("api::coupon.coupon").create({
+            data: { code, discountType: "percent", value, minOrder: 0 },
+        });
+    }
 }
 exports.default = {
     register() { },
