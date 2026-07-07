@@ -37,6 +37,37 @@ NEXT_PUBLIC_STRAPI_URL=http://localhost:1337
 STRAPI_API_TOKEN=<full-access token from Settings → API Tokens>
 ```
 
+On first run the app seeds sample content (products, categories, blog
+posts, coupons) and opens public read access — the storefront works
+immediately.
+
+## Deploy (free tier)
+
+Strapi needs a persistent server, a database, and durable file storage.
+A free-tier setup:
+
+| Piece | Service |
+|---|---|
+| App | [Render](https://render.com) web service |
+| Database | [Neon](https://neon.tech) (serverless Postgres) |
+| Media | [Cloudinary](https://cloudinary.com) |
+
+1. **Neon** → create a database, copy its connection string.
+2. **Cloudinary** → grab the cloud name / API key / API secret.
+3. **Render** → New Web Service from this repo:
+   - Build: `yarn install && yarn build` · Start: `yarn start`
+   - Env vars: the secrets from `.env.example` (generate with
+     `openssl rand -base64 32`), plus
+     `DATABASE_CLIENT=postgres`, `DATABASE_URL=<neon>`,
+     `DATABASE_SSL=true`, and the three `CLOUDINARY_*` values.
+4. Open the deployed `/admin`, create an admin user, then a full-access
+   **API token** (Settings → API Tokens).
+5. Point the frontend at it (on Vercel): `NEXT_PUBLIC_USE_STRAPI=true`,
+   `NEXT_PUBLIC_STRAPI_URL=<render-url>`, `STRAPI_API_TOKEN=<token>`.
+
+> Render's free tier sleeps after inactivity (~50s cold start), so the
+> main storefront demo runs on mock data instead.
+
 ## Notes
 
 - **Publish entries** — content types use draft & publish; the REST API
@@ -47,4 +78,4 @@ STRAPI_API_TOKEN=<full-access token from Settings → API Tokens>
 
 ## Tech
 
-Strapi v5 · TypeScript · SQLite (dev) / PostgreSQL (prod)
+Strapi v5 · TypeScript · SQLite (dev) / PostgreSQL (prod) · Cloudinary
