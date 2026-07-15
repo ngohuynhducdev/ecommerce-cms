@@ -22,11 +22,13 @@
     },
     "value": {
       "type": "decimal",
-      "required": true
+      "required": true,
+      "min": 0
     },
     "minOrder": {
       "type": "decimal",
-      "default": 0
+      "default": 0,
+      "min": 0
     },
     "expiresAt": {
       "type": "datetime"

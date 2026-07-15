@@ -29,7 +29,8 @@
       "min": 0
     },
     "comparePrice": {
-      "type": "decimal"
+      "type": "decimal",
+      "min": 0
     },
     "images": {
       "type": "media",
