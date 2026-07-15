@@ -34,12 +34,12 @@ Point the frontend at it:
 # frontend .env.local
 NEXT_PUBLIC_USE_STRAPI=true
 NEXT_PUBLIC_STRAPI_URL=http://localhost:1337
-STRAPI_API_TOKEN=<full-access token from Settings → API Tokens>
+STRAPI_API_TOKEN=<read-only token from Settings → API Tokens>
 ```
 
 On first run the app seeds sample content (products, categories, blog
-posts, coupons) and opens public read access — the storefront works
-immediately.
+posts, coupons) and opens public read access on everything except
+coupons — those need a token so codes stay unguessable.
 
 ## Deploy (free tier)
 
@@ -60,8 +60,8 @@ A free-tier setup:
      `openssl rand -base64 32`), plus
      `DATABASE_CLIENT=postgres`, `DATABASE_URL=<neon>`,
      `DATABASE_SSL=true`, and the three `CLOUDINARY_*` values.
-4. Open the deployed `/admin`, create an admin user, then a full-access
-   **API token** (Settings → API Tokens).
+4. Open the deployed `/admin`, create an admin user, then a **read-only
+   API token** (Settings → API Tokens) — the storefront only reads.
 5. Point the frontend at it (on Vercel): `NEXT_PUBLIC_USE_STRAPI=true`,
    `NEXT_PUBLIC_STRAPI_URL=<render-url>`, `STRAPI_API_TOKEN=<token>`.
 
@@ -72,9 +72,11 @@ A free-tier setup:
 
 - **Publish entries** — content types use draft & publish; the REST API
   returns only published entries, so publish products/posts after creating them.
-- **API access** — the frontend authenticates with a full-access API token
+- **API access** — the frontend authenticates with a read-only API token
   (Settings → API Tokens). Public read permissions also work for a token-less
-  setup.
+  setup, except coupons, which always require a token.
+- **CORS** — browser origins are limited to `CORS_ORIGINS`
+  (default `http://localhost:3000`); server-side callers are unaffected.
 
 ## Tech
 
