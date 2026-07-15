@@ -1,6 +1,6 @@
 import type { Core } from "@strapi/strapi";
 
-const config: Core.Config.Middlewares = [
+const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Middlewares => [
   "strapi::logger",
   "strapi::errors",
   // Allow Cloudinary-hosted media to render in the admin panel.
@@ -18,7 +18,14 @@ const config: Core.Config.Middlewares = [
       },
     },
   },
-  "strapi::cors",
+  // The storefront calls the API server-side with a token, so browsers only
+  // need CORS for origins listed in CORS_ORIGINS (e.g. a client-side app).
+  {
+    name: "strapi::cors",
+    config: {
+      origin: env.array("CORS_ORIGINS", ["http://localhost:3000"]),
+    },
+  },
   "strapi::poweredBy",
   "strapi::query",
   "strapi::body",

@@ -1,10 +1,17 @@
 import type { Core } from "@strapi/strapi";
 
 const PUBLIC_READ = ["find", "findOne"];
-const COLLECTIONS = ["product", "category", "blog-post", "coupon"];
+// Coupons are deliberately excluded: their codes must stay unguessable, so
+// they are only readable with an API token.
+const COLLECTIONS = ["product", "category", "blog-post"];
 
 // Open read access on the public role so a token-less setup works out of the box.
+// Runs once (tracked in the core store) so permission changes made in the
+// admin afterwards are not overridden on every boot.
 async function grantPublicRead(strapi: Core.Strapi) {
+  const store = strapi.store({ type: "core", name: "ecommerce-cms" });
+  if (await store.get({ key: "publicReadGranted" })) return;
+
   const publicRole = await strapi
     .query("plugin::users-permissions.role")
     .findOne({ where: { type: "public" } });
@@ -22,6 +29,24 @@ async function grantPublicRead(strapi: Core.Strapi) {
           .create({ data: { action: uid, role: publicRole.id } });
       }
     }
+  }
+
+  await store.set({ key: "publicReadGranted", value: true });
+}
+
+// Earlier versions of this bootstrap granted public read on coupons, which
+// made every discount code enumerable without a token. Revoke on every boot
+// so existing databases are cleaned up too.
+async function revokePublicCouponRead(strapi: Core.Strapi) {
+  const publicRole = await strapi
+    .query("plugin::users-permissions.role")
+    .findOne({ where: { type: "public" } });
+  if (!publicRole) return;
+
+  for (const action of PUBLIC_READ) {
+    await strapi.query("plugin::users-permissions.permission").deleteMany({
+      where: { action: `api::coupon.coupon.${action}`, role: publicRole.id },
+    });
   }
 }
 
@@ -185,6 +210,7 @@ export default {
   register() {},
 
   async bootstrap({ strapi }: { strapi: Core.Strapi }) {
+    await revokePublicCouponRead(strapi);
     await grantPublicRead(strapi);
     await seed(strapi);
   },
