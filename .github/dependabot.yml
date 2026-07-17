@@ -9,3 +9,20 @@ updates:
       strapi:
         patterns:
           - "@strapi/*"
+    ignore:
+      # Strapi caps supported Node at 24 (engines), so newer @types/node
+      # majors describe APIs the runtime doesn't have.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # React 18 / react-router 6 / styled-components 6 are pinned by the
+      # Strapi admin — majors here can't be adopted until Strapi moves.
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router-dom"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
