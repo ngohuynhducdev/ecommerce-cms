@@ -52,12 +52,140 @@ async function revokePublicCouponRead(strapi: Core.Strapi) {
 
 const publish = { status: "published" as const };
 
+// ── Seed media ────────────────────────────────────────────────────────────────
+// Entries seeded without images get them backfilled from Unsplash on boot:
+// download → upload through the upload plugin (Cloudinary in prod, local disk
+// in dev) → attach. Idempotent per entry (skips anything that already has
+// media), and a core-store flag skips the whole pass once every entry is done.
+
+const unsplash = (id: string, w = 1200, h = 1200) =>
+  `https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&fit=crop&auto=format&q=80`;
+
+const PRODUCT_IMAGES: Record<string, string> = {
+  "aria-sofa": "1555041469-a586c61ea9bc",
+  "nordic-coffee-table": "1549187774-b4e9b0445b41",
+  "lounge-armchair": "1586023492125-27b2c045efd7",
+  "haven-bed-frame": "1540518614846-7eded433c457",
+  "drift-nightstand": "1616594039964-ae9021a400a0",
+  "ensemble-dining-table": "1577140917170-285929fb55b7",
+  "contour-dining-chair": "1592078615290-033ee584e267",
+  // The mock's original photo 404s on Unsplash — this is a live stool shot.
+  "mason-bar-stool": "1503602642458-232111445657",
+};
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  "living-room": "1555041469-a586c61ea9bc",
+  bedroom: "1540518614846-7eded433c457",
+  dining: "1577140917170-285929fb55b7",
+  office: "1593642632559-0c6d3fc62b89",
+};
+
+const BLOG_COVERS: Record<string, string> = {
+  "how-to-choose-the-perfect-sofa": "1555041469-a586c61ea9bc",
+  "minimalist-interior-design-principles": "1484101403633-562f891dc89a",
+  "art-of-mixing-furniture-styles": "1493663284031-b7e3aefcae8e",
+};
+
+async function uploadFromUrl(
+  strapi: Core.Strapi,
+  url: string,
+  name: string,
+  alternativeText: string,
+): Promise<{ id: number } | null> {
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const { writeFile, unlink } = await import("node:fs/promises");
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    strapi.log.warn(`seed-media: download failed (${res.status}) for ${name}`);
+    return null;
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+  const filepath = path.join(os.tmpdir(), `seed-${name}.jpg`);
+  await writeFile(filepath, buf);
+
+  try {
+    const [file] = await strapi
+      .plugin("upload")
+      .service("upload")
+      .upload({
+        data: { fileInfo: { name, alternativeText, caption: "" } },
+        files: {
+          filepath,
+          originalFilename: `${name}.jpg`,
+          mimetype: "image/jpeg",
+          size: buf.length,
+        },
+      });
+    return file ?? null;
+  } finally {
+    await unlink(filepath).catch(() => {});
+  }
+}
+
+async function seedMedia(strapi: Core.Strapi) {
+  const store = strapi.store({ type: "core", name: "ecommerce-cms" });
+  if (await store.get({ key: "mediaSeeded" })) return;
+
+  let pending = 0;
+
+  const targets: Array<{
+    uid: "api::product.product" | "api::category.category" | "api::blog-post.blog-post";
+    field: "images" | "image" | "cover";
+    multiple: boolean;
+    urls: Record<string, string>;
+    label: string;
+  }> = [
+    { uid: "api::product.product", field: "images", multiple: true, urls: PRODUCT_IMAGES, label: "product" },
+    { uid: "api::category.category", field: "image", multiple: false, urls: CATEGORY_IMAGES, label: "category" },
+    { uid: "api::blog-post.blog-post", field: "cover", multiple: false, urls: BLOG_COVERS, label: "blog-post" },
+  ];
+
+  for (const t of targets) {
+    // The loop erases the per-uid populate key union; the field names are
+    // valid for their matching uid (images/image/cover), so widen the type.
+    const entries = await strapi.documents(t.uid).findMany({
+      populate: [t.field] as never,
+      ...publish,
+    });
+
+    for (const entry of entries as Array<Record<string, unknown> & { documentId: string; slug?: string; name?: string; title?: string }>) {
+      const slug = entry.slug ?? "";
+      const photoId = t.urls[slug];
+      const existing = entry[t.field];
+      const hasMedia = Array.isArray(existing) ? existing.length > 0 : Boolean(existing);
+      if (!photoId || hasMedia) continue;
+
+      const displayName = (entry.name ?? entry.title ?? slug) as string;
+      const file = await uploadFromUrl(strapi, unsplash(photoId), slug, displayName);
+      if (!file) {
+        pending++;
+        continue;
+      }
+
+      await strapi.documents(t.uid).update({
+        documentId: entry.documentId,
+        data: { [t.field]: t.multiple ? [file.id] : file.id } as never,
+        ...publish,
+      });
+      strapi.log.info(`seed-media: attached image to ${t.label} "${slug}"`);
+    }
+  }
+
+  // Only stop retrying once every entry has media — failed downloads get
+  // another chance on the next boot.
+  if (pending === 0) {
+    await store.set({ key: "mediaSeeded", value: true });
+  }
+}
+
 // A rich-text paragraph/heading block (Strapi "blocks" format).
 const h2 = (text: string) => ({ type: "heading", level: 2, children: [{ type: "text", text }] });
 const p = (text: string) => ({ type: "paragraph", children: [{ type: "text", text }] });
 
 // Seed sample content on first run so the storefront has data to show.
-// Images are added later via the admin (uploads persist on Cloudinary in prod).
+// Images are attached afterwards by seedMedia (uploads persist on Cloudinary in prod).
 async function seed(strapi: Core.Strapi) {
   const count = await strapi.documents("api::product.product").count({});
   if (count > 0) return;
@@ -213,5 +341,6 @@ export default {
     await revokePublicCouponRead(strapi);
     await grantPublicRead(strapi);
     await seed(strapi);
+    await seedMedia(strapi);
   },
 };
