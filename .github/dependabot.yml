@@ -22,6 +22,15 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-router-dom"
         update-types: ["version-update:semver-major"]
+      # This project runs on Node 20 (CI + Render NODE_VERSION). Strapi 5.51+
+      # pulls preferred-pm@5 (engines ">=22.13") and better-sqlite3 13 declares
+      # ">=22", so yarn refuses to install either. Patches within 5.50.x still
+      # come through; drop these two entries when the runtime moves to Node 22.
+      - dependency-name: "@strapi/*"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "better-sqlite3"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
