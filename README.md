@@ -45,8 +45,11 @@ On first boot the app seeds sample content (products, categories, blog posts,
 coupons), backfills any missing images from Unsplash through the upload plugin
 (Cloudinary in production, local disk in dev), and opens public read access on
 everything **except** coupons — those need a token so discount codes stay
-unguessable. Both passes are idempotent and tracked in the core store, so
-permissions changed in the admin afterwards are not overwritten on restart.
+unguessable. Seeding, media backfill and the public-read grant each run once
+and are tracked in the core store, so admin edits survive a restart. The one
+exception is deliberate: public read on coupons is revoked on **every** boot,
+so a token stays mandatory for discount codes even if the permission is
+granted by hand.
 
 ## Deploy (free tier)
 
