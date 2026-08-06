@@ -16,21 +16,28 @@ storefront**. Defines the content model and exposes it over Strapi's REST API.
 
 | Type | Key fields |
 |---|---|
-| **Product** | name, slug, price, comparePrice, images, category (relation), tags, variants, stock, isFeatured, isBestseller, rating, reviewCount |
-| **Category** | name, slug, description, image, products (relation) |
+| **Product** | name, slug, description, price, comparePrice, images, category (relation), tags, variants, stock, isFeatured, isBestseller, rating, reviewCount |
+| **Category** | name, slug, description, image, products (relation), parent/children (self-relation, for sub-categories) |
 | **Blog Post** | title, slug, excerpt, author, cover, tags, content (rich text) |
 | **Coupon** | code, discountType (percent/fixed), value, minOrder, expiresAt |
 
 Field names and shapes match what the frontend's Strapi mappers
-(`src/lib/api/*`) expect, so switching the frontend from mock to CMS needs
-zero UI changes.
+(`ecommerce/src/lib/api/*`, in the storefront repo) expect, so switching the
+frontend from mock to CMS needs zero UI changes.
 
 ## Run locally
 
+Needs Node 20–24 (see `engines` in `package.json`; CI builds on Node 20).
+
 ```bash
 yarn install
-yarn develop        # admin at http://localhost:1337/admin
+cp .env.example .env   # then fill in the secrets
+yarn develop           # admin at http://localhost:1337/admin
 ```
+
+Strapi will not boot until the secrets block in `.env` has real values —
+generate each with `openssl rand -base64 32`. The database block can stay
+commented out: dev defaults to SQLite in `.tmp/data.db`.
 
 Point the frontend at it:
 
@@ -45,11 +52,18 @@ On first boot the app seeds sample content (products, categories, blog posts,
 coupons), backfills any missing images from Unsplash through the upload plugin
 (Cloudinary in production, local disk in dev), and opens public read access on
 everything **except** coupons — those need a token so discount codes stay
-unguessable. Seeding, media backfill and the public-read grant each run once
-and are tracked in the core store, so admin edits survive a restart. The one
-exception is deliberate: public read on coupons is revoked on **every** boot,
-so a token stays mandatory for discount codes even if the permission is
-granted by hand.
+unguessable.
+
+Each step guards itself, so admin edits survive a restart:
+
+- **Seeding** is skipped as soon as the database holds at least one product.
+  Delete every product and the next boot seeds the sample set again.
+- **Media backfill** and the **public-read grant** are flagged in the core
+  store and run once. (The backfill only sets its flag once every entry has an
+  image, so a failed download is retried on the next boot.)
+- **Public read on coupons** is the deliberate exception: it is revoked on
+  **every** boot, so a token stays mandatory for discount codes even if the
+  permission is granted by hand.
 
 ## Deploy (free tier)
 
